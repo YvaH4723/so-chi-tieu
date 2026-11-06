@@ -135,6 +135,41 @@
     .cham { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
       background: var(--over); color: #fff; font-size: 11px; line-height: 18px; font-weight: 700; }
     .nhan-vi { color: var(--sub); font-size: 13px; font-weight: 500; }
+    /* Bản Claude */
+    .hero { background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 18%, var(--surface)), var(--surface) 70%);
+      border-radius: 22px; padding: 20px 18px 14px; margin: 8px 0 12px; }
+    .lich i { height: 18px; border-radius: 9px; }
+    .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 18px;
+      background: var(--soft); color: var(--sub); margin: 4px 4px 0 0; }
+    .pill.vi-liobank { background: color-mix(in srgb, #8B7CF6 22%, transparent); color: #8B7CF6; }
+    .pill.vi-tien_mat { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+    .pill.vi-tk { background: color-mix(in srgb, #E3A33B 22%, transparent); color: #C98A22; }
+    .canh-bao div { border-left: 4px solid var(--warn); background: color-mix(in srgb, var(--warn) 14%, var(--surface)); color: var(--warn); }
+    .canh-bao div.cb-lich { border-left-color: #4C8DF6; background: color-mix(in srgb, #4C8DF6 14%, var(--surface)); color: #4C8DF6; }
+    .canh-bao div.cb-no { border-left-color: var(--over); background: color-mix(in srgb, var(--over) 14%, var(--surface)); color: var(--over); }
+    .cham-vi { display: inline-block; width: 8px; height: 8px; border-radius: 4px; margin-right: 8px; vertical-align: middle; background: var(--accent); }
+    .cham-vi.tk { background: var(--warn); }
+    #ds-so { background: transparent; padding: 0; }
+    .ngay-khoi { background: var(--surface); border-radius: 18px; padding: 0 16px; margin-bottom: 10px; }
+    .ngay-khoi > .card { background: transparent; border-radius: 0; margin: 0; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    .ngay-khoi > .card:last-child { border-bottom: none; }
+    .ngay-dau { display: flex; justify-content: space-between; padding: 14px 0 6px; color: var(--sub); font-size: 13px; font-weight: 700;
+      border-bottom: 1px solid var(--line); }
+    .kpi-hang { display: flex; gap: 10px; margin-bottom: 12px; }
+    .kpi { flex: 1; background: var(--surface); border-radius: 16px; padding: 12px 14px; min-width: 0; }
+    .kpi .nhan { color: var(--sub); font-size: 13px; }
+    .kpi .so { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+    .kpi .so.chi { color: var(--over); } .kpi .so.thu { color: var(--in); }
+    .progress-track { position: relative; overflow: visible; }
+    .progress-fill { transition: width .4s ease; }
+    .moc { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--ink); opacity: .55; border-radius: 1px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+    .chip { min-height: 40px; padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 15px; }
+    .chip.chon { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .tien-hien { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; margin: 2px 0 4px; }
+    .sheet { animation: truotLen .22s ease-out; }
+    @keyframes truotLen { from { transform: translateY(40px); opacity: .6; } to { transform: none; opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } .progress-fill { transition: none; } }
     .hidden { display: none !important; }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
@@ -202,7 +237,7 @@
       <div class="form-row">
         <input id="so-tim" type="search" style="flex:1;width:100%;" placeholder="Tìm tên hoặc ghi chú…" oninput="clearTimeout(window._tTim); window._tTim = setTimeout(taiSo, 350)">
       </div>
-      <div id="so-tong" class="sub-line" style="font-weight:600;"></div>
+      <div id="so-tong" class="kpi-hang"></div>
       <div id="ds-so"></div>
     </section>
 
@@ -266,14 +301,17 @@
         <h2 style="margin:0">Ghi chi tiền mặt</h2>
         <button type="button" class="icon-btn" aria-label="Đóng" onclick="dongGhiNhanh()" style="font-size:26px">✕</button>
       </div>
-      <input id="gn-tien" type="number" inputmode="numeric" placeholder="Số tiền, vd 25000">
+      <div id="gn-hien" class="tien-hien">0đ</div>
+      <input id="gn-tien" type="number" inputmode="numeric" placeholder="Số tiền, vd 25000" oninput="capNhatTienHien()">
       <div class="form-row">
         <button type="button" style="flex:1" onclick="themTien(5000)">+5k</button>
         <button type="button" style="flex:1" onclick="themTien(10000)">+10k</button>
         <button type="button" style="flex:1" onclick="themTien(50000)">+50k</button>
         <button type="button" style="flex:1" onclick="themTien('000')">000</button>
+        <button type="button" style="flex:1;color:var(--sub)" onclick="document.getElementById('gn-tien').value='';capNhatTienHien()">Xóa</button>
       </div>
-      <div class="form-row"><select id="gn-muc"></select></div>
+      <input id="gn-muc" type="hidden">
+      <div id="gn-chips" class="chips"></div>
       <div class="form-row"><input id="gn-ghi-chu" type="text" placeholder="Ghi chú (không bắt buộc)"></div>
       <button id="gn-luu" type="button" class="primary full-btn" onclick="luuGhiNhanh()">Lưu</button>
       <div class="sub-line" style="margin:0">Chi bằng thẻ Liobank thì không cần ghi ở đây, sổ tự bắt.</div>
@@ -315,6 +353,14 @@
       return (so < 0 ? '−' : '') + s + 'đ';
     }
 
+    function tenNgay(ymd) {
+      if (ymd === KY_HOM_NAY) return 'Hôm nay';
+      var p = String(ymd || '').split('-').map(Number);
+      if (p.length !== 3) return ymd;
+      var d = new Date(p[0], p[1] - 1, p[2]);
+      var thu = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][d.getDay()];
+      return thu + ', ' + ngayVN(ymd);
+    }
     function ngayVN(ymd) {
       var p = String(ymd || '').split('-');
       return p.length === 3 ? p[2] + '/' + p[1] : ymd;
@@ -438,9 +484,13 @@
           var hopVi = document.getElementById('tq-cac-vi'); hopVi.innerHTML = '';
           (kq.tien_con.vi || []).forEach(function (v) {
             var d = document.createElement('div'); d.className = 'dong-vi';
-            var a = document.createElement('span'); a.textContent = v.ten;
+            var a = document.createElement('span');
+            var cham = document.createElement('i'); cham.className = 'cham-vi' + (v.tiet_kiem ? ' tk' : '');
+            a.appendChild(cham);
+            a.appendChild(document.createTextNode(v.ten + ' '));
+            if (v.tiet_kiem) { var pill = document.createElement('span'); pill.className = 'pill vi-tk'; pill.textContent = 'tiết kiệm'; a.appendChild(pill); }
             var b = document.createElement('span');
-            if (v.tiet_kiem) a.textContent = v.ten + ' (tiết kiệm, không tính)';
+            if (v.tiet_kiem) d.style.opacity = '.75';
             if (v.so_du < 0) { b.className = 'no'; b.textContent = 'nợ ' + tien(-v.so_du); }
             else b.textContent = tien(v.so_du);
             d.appendChild(a); d.appendChild(b); hopVi.appendChild(d);
@@ -463,6 +513,8 @@
         dongCB.forEach(function (c) {
           var d = document.createElement('div');
           d.textContent = c;
+          if (c.indexOf('📅') === 0) d.className = 'cb-lich';
+          else if (c.indexOf('💸') === 0) d.className = 'cb-no';
           elCB.appendChild(d);
         });
         if (kq.hom_nay) KY_HOM_NAY = kq.hom_nay;
@@ -697,6 +749,16 @@
           fill.className = 'progress-fill' + (m.ti_le >= 1 ? ' over' : (m.ti_le >= 0.8 ? ' warn' : ''));
           fill.style.width = pct + '%';
           track.appendChild(fill);
+          // Mốc "nên tiêu tới đâu" theo số ngày đã qua. Ăn uống: 35k mỗi ngày đã qua tính cả hôm nay.
+          if (kq.ky && m.han_muc > 0) {
+            var daQuaNs = kq.ky.so_ngay - kq.ky.con_ngay + 1;
+            var tiLeMoc = m.id === 'an_uong' ? Math.min(1, daQuaNs * 35000 / m.han_muc) : daQuaNs / kq.ky.so_ngay;
+            if (m.nhom !== 'hóa đơn') {
+              var moc = document.createElement('i'); moc.className = 'moc';
+              moc.style.left = 'calc(' + Math.round(tiLeMoc * 100) + '% - 1px)';
+              track.appendChild(moc);
+            }
+          }
           card.appendChild(track);
 
           var sub = document.createElement('div');
@@ -778,8 +840,13 @@
       if (tim) req.tim = tim;
 
       goiApi(req, function (kq) {
-        document.getElementById('so-tong').textContent =
-          'Chi ' + tien(kq.tong_chi || 0) + ' · Thu ' + tien(kq.tong_thu || 0);
+        document.getElementById('so-tong').innerHTML = '';
+        [['Tổng chi', kq.tong_chi, 'chi'], ['Tổng thu', kq.tong_thu, 'thu']].forEach(function (x) {
+          var k = document.createElement('div'); k.className = 'kpi';
+          var n = document.createElement('div'); n.className = 'nhan'; n.textContent = x[0];
+          var v = document.createElement('div'); v.className = 'so ' + x[2]; v.textContent = tien(x[1] || 0);
+          k.appendChild(n); k.appendChild(v); document.getElementById('so-tong').appendChild(k);
+        });
         var ds = kq.khoan || [];
         hop.innerHTML = '';
         if (!ds.length) {
@@ -789,8 +856,20 @@
           hop.appendChild(p);
           return;
         }
+        var tongNgay = {};
+        ds.forEach(function (k) { if (k.loai === 'chi') tongNgay[k.ngay] = (tongNgay[k.ngay] || 0) + Math.abs(k.so_tien); });
+        var ngayTruoc = '';
+        var khoi = null;
         ds.forEach(function (k) {
-          hop.appendChild(taoDongSo(k));
+          if (k.ngay !== ngayTruoc) {
+            ngayTruoc = k.ngay;
+            khoi = document.createElement('div'); khoi.className = 'ngay-khoi';
+            var h = document.createElement('div'); h.className = 'ngay-dau';
+            var t1 = document.createElement('span'); t1.textContent = tenNgay(k.ngay);
+            var t2 = document.createElement('span'); t2.textContent = tongNgay[k.ngay] ? ('chi ' + tien(tongNgay[k.ngay])) : '';
+            h.appendChild(t1); h.appendChild(t2); khoi.appendChild(h); hop.appendChild(khoi);
+          }
+          khoi.appendChild(taoDongSo(k));
         });
       });
     }
@@ -806,19 +885,15 @@
       var trai = document.createElement('div');
       var ten = document.createElement('span');
       ten.className = 'item-name';
-      ten.textContent = ngayVN(k.ngay) + '  ' + (k.ten || k.ghi_chu || k.loai);
+      ten.textContent = k.ten || k.ghi_chu || k.loai;
       trai.appendChild(ten);
 
       var tenVi = { liobank: 'Liobank', tien_mat: 'Tiền mặt', zalopay_sdsl: 'ZaloPay', vietcombank: 'VCB', mbbank: 'MB', acb: 'ACB', liobank_ong_heo: 'Ống Heo' }[k.tai_khoan] || k.tai_khoan || '';
-      var nhanPhu = (k.loai === 'tach' ? 'đã tách' : (k.ten_muc || '')) + (tenVi ? (k.loai === 'tach' || k.ten_muc ? ' · ' : '') + tenVi : '');
-      if (nhanPhu) {
-        var nhanMuc = document.createElement('span');
-        nhanMuc.style.color = 'var(--sub)';
-        nhanMuc.style.display = 'block';
-        nhanMuc.style.fontSize = '14px';
-        nhanMuc.textContent = nhanPhu;
-        trai.appendChild(nhanMuc);
-      }
+      var hangPill = document.createElement('div');
+      var nhanMucTxt = k.loai === 'tach' ? 'đã tách' : (k.ten_muc || (k.loai === 'chuyen_noi_bo' ? 'chuyển nội bộ' : (k.loai === 'thu' ? 'tiền vào' : '')));
+      if (nhanMucTxt) { var p1 = document.createElement('span'); p1.className = 'pill'; p1.textContent = nhanMucTxt; hangPill.appendChild(p1); }
+      if (tenVi) { var p2 = document.createElement('span'); p2.className = 'pill vi-' + k.tai_khoan; p2.textContent = tenVi; hangPill.appendChild(p2); }
+      trai.appendChild(hangPill);
 
       var so = document.createElement('div');
       so.className = 'item-amt' + (k.so_tien > 0 ? ' amt-in' : '');
@@ -1045,7 +1120,22 @@
 
     function taiBaoCao() {
       goiApi({ lenh: 'bao_cao' }, function (kq) {
-        document.getElementById('bc-thong-bao').textContent = kq.thong_bao || '';
+        var bc = document.getElementById('bc-thong-bao');
+        bc.innerHTML = '';
+        var hangKpi = document.createElement('div'); hangKpi.className = 'kpi-hang'; hangKpi.style.flexWrap = 'wrap';
+        var dsKpi = [['Tổng chi', tien(kq.tong_chi || 0), 'chi']];
+        if (kq.so_ky_truoc) dsKpi.push(['So kỳ trước', (kq.so_ky_truoc.chenh > 0 ? '+' : '') + tien(kq.so_ky_truoc.chenh), kq.so_ky_truoc.chenh > 0 ? 'chi' : 'thu']);
+        dsKpi.push([kq.dang_chay ? 'Đang dư' : 'Nên tiết kiệm', tien(kq.nen_chuyen_tiet_kiem || 0), 'thu']);
+        dsKpi.forEach(function (x) {
+          var k = document.createElement('div'); k.className = 'kpi'; k.style.background = 'var(--soft)'; k.style.minWidth = '40%';
+          var n = document.createElement('div'); n.className = 'nhan'; n.textContent = x[0];
+          var v = document.createElement('div'); v.className = 'so ' + x[2]; v.textContent = x[1];
+          k.appendChild(n); k.appendChild(v); hangKpi.appendChild(k);
+        });
+        bc.appendChild(hangKpi);
+        var phu = document.createElement('div'); phu.className = 'sub-line';
+        phu.textContent = String(kq.thong_bao || '').split('\n').filter(function (x) { return /^Vượt|^Kỳ chưa hết/.test(x); }).join('\n');
+        bc.appendChild(phu);
         var hop = document.getElementById('bc-bang-muc');
         hop.innerHTML = '';
         (kq.muc || []).forEach(function (m) {
@@ -1281,16 +1371,24 @@
     }
 
     function moGhiNhanh() {
-      var sel = document.getElementById('gn-muc');
-      sel.innerHTML = '';
-      DS_MUC_CACHE.forEach(function (m) {
-        var o = document.createElement('option'); o.value = m.id; o.textContent = m.ten; sel.appendChild(o);
+      var hopChip = document.getElementById('gn-chips');
+      hopChip.innerHTML = '';
+      document.getElementById('gn-muc').value = DS_MUC_CACHE.length ? DS_MUC_CACHE[0].id : '';
+      DS_MUC_CACHE.forEach(function (m, i) {
+        var c = document.createElement('button'); c.type = 'button'; c.className = 'chip' + (i === 0 ? ' chon' : '');
+        c.textContent = m.ten;
+        c.onclick = function () {
+          Array.prototype.forEach.call(hopChip.children, function (x) { x.classList.remove('chon'); });
+          c.classList.add('chon'); document.getElementById('gn-muc').value = m.id;
+        };
+        hopChip.appendChild(c);
       });
       if (!DS_MUC_CACHE.length) {
         goiApi({ lenh: 'cho_phan_loai' }, function (kq) { if (kq.muc) { capNhatDropdownMucSo(kq.muc); moGhiNhanh(); } });
         return;
       }
       document.getElementById('gn-tien').value = '';
+      capNhatTienHien();
       document.getElementById('gn-ghi-chu').value = '';
       document.getElementById('ghi-nhanh').classList.remove('hidden');
       document.getElementById('gn-tien').focus();
@@ -1298,6 +1396,10 @@
     function themTien(x) {
       var o = document.getElementById('gn-tien');
       o.value = x === '000' ? ((o.value || '') + '000') : String((Number(o.value) || 0) + x);
+      capNhatTienHien();
+    }
+    function capNhatTienHien() {
+      document.getElementById('gn-hien').textContent = tien(Number(document.getElementById('gn-tien').value) || 0);
     }
     function dongGhiNhanh() { document.getElementById('ghi-nhanh').classList.add('hidden'); }
     function luuGhiNhanh() {
