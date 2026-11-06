@@ -489,6 +489,7 @@
             a.appendChild(cham);
             a.appendChild(document.createTextNode(v.ten + ' '));
             if (v.tiet_kiem) { var pill = document.createElement('span'); pill.className = 'pill vi-tk'; pill.textContent = 'tiết kiệm'; a.appendChild(pill); }
+            if (v.cho_chuyen) { var pc = document.createElement('span'); pc.className = 'pill'; pc.textContent = 'chờ chuyển, không tính'; a.appendChild(pc); d.style.opacity = '.75'; }
             var b = document.createElement('span');
             if (v.tiet_kiem) d.style.opacity = '.75';
             if (v.so_du < 0) { b.className = 'no'; b.textContent = 'nợ ' + tien(-v.so_du); }
