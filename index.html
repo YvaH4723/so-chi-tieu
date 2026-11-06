@@ -262,8 +262,17 @@
   <button type="button" class="fab" aria-label="Ghi tiền mặt" onclick="moGhiNhanh()">+</button>
   <div id="ghi-nhanh" class="sheet-nen hidden" onclick="if (event.target === this) dongGhiNhanh()">
     <div class="sheet">
-      <h2 style="margin-top:0">Ghi chi tiền mặt</h2>
+      <div class="item-head" style="align-items:center;margin-bottom:8px">
+        <h2 style="margin:0">Ghi chi tiền mặt</h2>
+        <button type="button" class="icon-btn" aria-label="Đóng" onclick="dongGhiNhanh()" style="font-size:26px">✕</button>
+      </div>
       <input id="gn-tien" type="number" inputmode="numeric" placeholder="Số tiền, vd 25000">
+      <div class="form-row">
+        <button type="button" style="flex:1" onclick="themTien(5000)">+5k</button>
+        <button type="button" style="flex:1" onclick="themTien(10000)">+10k</button>
+        <button type="button" style="flex:1" onclick="themTien(50000)">+50k</button>
+        <button type="button" style="flex:1" onclick="themTien('000')">000</button>
+      </div>
       <div class="form-row"><select id="gn-muc"></select></div>
       <div class="form-row"><input id="gn-ghi-chu" type="text" placeholder="Ghi chú (không bắt buộc)"></div>
       <button id="gn-luu" type="button" class="primary full-btn" onclick="luuGhiNhanh()">Lưu</button>
@@ -1285,6 +1294,10 @@
       document.getElementById('gn-ghi-chu').value = '';
       document.getElementById('ghi-nhanh').classList.remove('hidden');
       document.getElementById('gn-tien').focus();
+    }
+    function themTien(x) {
+      var o = document.getElementById('gn-tien');
+      o.value = x === '000' ? ((o.value || '') + '000') : String((Number(o.value) || 0) + x);
     }
     function dongGhiNhanh() { document.getElementById('ghi-nhanh').classList.add('hidden'); }
     function luuGhiNhanh() {
