@@ -313,7 +313,7 @@
   </main>
 
 
-  <button type="button" class="fab" aria-label="Ghi tiền mặt" onclick="moGhiNhanh()">+</button>
+  <button id="nut-fab" type="button" class="fab" aria-label="Ghi tiền mặt" onclick="moGhiNhanh()">+</button>
   <div id="ghi-nhanh" class="sheet-nen hidden" onclick="if (event.target === this) dongGhiNhanh()">
     <div class="sheet">
       <div class="item-head" style="align-items:center;margin-bottom:8px">
@@ -474,6 +474,7 @@
         document.getElementById('tab-' + t).classList.toggle('hidden', t !== ten);
         document.getElementById('btn-tab-' + t).classList.toggle('active', t === ten);
       });
+      document.getElementById('nut-fab').classList.toggle('hidden', ten === 'hoi');
       taiTabHienTai();
     }
 
