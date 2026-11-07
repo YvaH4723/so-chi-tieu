@@ -170,6 +170,13 @@
     .sheet { animation: truotLen .22s ease-out; }
     @keyframes truotLen { from { transform: translateY(40px); opacity: .6; } to { transform: none; opacity: 1; } }
     @media (prefers-reduced-motion: reduce) { .sheet { animation: none; } .progress-fill { transition: none; } }
+    .chat-log { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .bong { max-width: 88%; padding: 10px 14px; border-radius: 18px; white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+    .bong.toi { align-self: flex-end; background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 6px; }
+    .bong.ai { align-self: flex-start; background: var(--surface); border-bottom-left-radius: 6px; }
+    .bong.cho { color: var(--sub); }
+    .chat-vao { display: flex; gap: 8px; align-items: flex-end; }
+    .chat-vao textarea { flex: 1; font: inherit; min-height: 48px; max-height: 140px; resize: vertical; }
     .hidden { display: none !important; }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
@@ -239,6 +246,18 @@
       </div>
       <div id="so-tong" class="kpi-hang"></div>
       <div id="ds-so"></div>
+    </section>
+
+    <section id="tab-hoi" class="hidden">
+      <h2>Hỏi Claude</h2>
+      <div class="sub-line" style="margin-bottom:10px;">Hỏi có nên mua món nào đó với số tiền đang có, hoặc so sánh hai món nào đáng tiền hơn. Nhớ ghi giá.</div>
+      <div id="chat-log" class="chat-log" aria-live="polite"></div>
+      <div class="chat-vao">
+        <textarea id="chat-o" rows="2" placeholder="VD: Tai nghe A 1,2tr hay B 1,8tr, nên lấy cái nào?"></textarea>
+        <button id="chat-gui" type="button" class="primary" onclick="guiHoi()">Gửi</button>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--sub);font-size:14px;"><input id="chat-ky" type="checkbox"> Dùng Sonnet (kỹ hơn, tốn hơn vài lần)</label>
+      <button type="button" class="full-btn" style="margin-top:10px;" onclick="xoaChat()">Xóa cuộc trò chuyện</button>
     </section>
 
     <section id="tab-them" class="hidden">
@@ -323,6 +342,7 @@
     <button id="btn-tab-phan-loai" type="button" class="tab-btn" onclick="chuyenTab('phan-loai')"><span id="cham-pl" class="cham hidden"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h6"/><path d="M17 15l2 2 3-4"/></svg>Phân loại</button>
     <button id="btn-tab-ngan-sach" type="button" class="tab-btn" onclick="chuyenTab('ngan-sach')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Ngân sách</button>
     <button id="btn-tab-so" type="button" class="tab-btn" onclick="chuyenTab('so')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h11a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2V5"/><path d="M9 8h6M9 12h6"/></svg>Sổ</button>
+    <button id="btn-tab-hoi" type="button" class="tab-btn" onclick="chuyenTab('hoi')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1.1-4.6A8 8 0 1 1 21 12z"/></svg>Hỏi</button>
     <button id="btn-tab-them" type="button" class="tab-btn" onclick="chuyenTab('them')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>Thêm</button>
   </nav>
 
@@ -450,7 +470,7 @@
 
     function chuyenTab(ten) {
       TAB_HIEN_TAI = ten;
-      ['tong-quan', 'phan-loai', 'ngan-sach', 'so', 'them'].forEach(function (t) {
+      ['tong-quan', 'phan-loai', 'ngan-sach', 'so', 'hoi', 'them'].forEach(function (t) {
         document.getElementById('tab-' + t).classList.toggle('hidden', t !== ten);
         document.getElementById('btn-tab-' + t).classList.toggle('active', t === ten);
       });
@@ -463,7 +483,40 @@
       else if (TAB_HIEN_TAI === 'phan-loai') taiPhanLoai();
       else if (TAB_HIEN_TAI === 'ngan-sach') taiNganSach();
       else if (TAB_HIEN_TAI === 'so') taiSo();
+      else if (TAB_HIEN_TAI === 'hoi') veChat();
       else if (TAB_HIEN_TAI === 'them') taiThem();
+    }
+
+    var LICH_SU_CHAT = [];
+    function veChat() {
+      var log = document.getElementById('chat-log');
+      log.innerHTML = '';
+      LICH_SU_CHAT.forEach(function (m) {
+        var d = document.createElement('div');
+        d.className = 'bong ' + (m.vai === 'user' ? 'toi' : 'ai') + (m.cho ? ' cho' : '');
+        d.textContent = m.noi_dung;
+        log.appendChild(d);
+      });
+      if (log.lastChild) log.lastChild.scrollIntoView({ block: 'nearest' });
+    }
+    function xoaChat() { LICH_SU_CHAT = []; veChat(); }
+    function guiHoi() {
+      var o = document.getElementById('chat-o'), nut = document.getElementById('chat-gui');
+      var cau = o.value.trim();
+      if (!cau || nut.disabled) return;
+      var lichSu = LICH_SU_CHAT.filter(function (m) { return !m.cho; }).slice(-6);
+      LICH_SU_CHAT.push({ vai: 'user', noi_dung: cau });
+      LICH_SU_CHAT.push({ vai: 'assistant', noi_dung: 'Đang nghĩ…', cho: true });
+      o.value = ''; nut.disabled = true; veChat();
+      var xong = function (chu, loi) {
+        LICH_SU_CHAT = LICH_SU_CHAT.filter(function (m) { return !m.cho; });
+        if (loi) LICH_SU_CHAT.pop(); else LICH_SU_CHAT.push({ vai: 'assistant', noi_dung: chu });
+        if (loi) o.value = cau;
+        nut.disabled = false; veChat();
+      };
+      goiApi({ lenh: 'hoi', cau_hoi: cau, lich_su: lichSu, ky: document.getElementById('chat-ky').checked },
+        function (kq) { xong(kq.tra_loi, false); },
+        function () { xong('', true); });
     }
 
     function taiTongQuan() {
