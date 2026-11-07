@@ -495,7 +495,9 @@
       LICH_SU_CHAT.forEach(function (m) {
         var d = document.createElement('div');
         d.className = 'bong ' + (m.vai === 'user' ? 'toi' : 'ai') + (m.cho ? ' cho' : '');
-        d.textContent = m.noi_dung;
+        // Claude hay viết **đậm**: thoát HTML trước rồi mới đổi ** thành chữ đậm, an toàn với XSS.
+        var an = String(m.noi_dung).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        d.innerHTML = an.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
         log.appendChild(d);
       });
       if (log.lastChild) log.lastChild.scrollIntoView({ block: 'nearest' });
