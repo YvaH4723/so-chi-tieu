@@ -177,6 +177,9 @@
     .bong.cho { color: var(--sub); }
     .chat-vao { display: flex; gap: 8px; align-items: flex-end; }
     .chat-vao textarea { flex: 1; font: inherit; min-height: 48px; max-height: 140px; resize: vertical; }
+    .anh-cho { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .anh-cho img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; }
+    .bong img { max-width: 72px; max-height: 72px; border-radius: 8px; margin: 0 4px 4px 0; vertical-align: top; }
     .hidden { display: none !important; }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
@@ -252,7 +255,9 @@
       <h2>Hỏi Claude</h2>
       <div class="sub-line" style="margin-bottom:10px;">Hỏi có nên mua món nào đó với số tiền đang có, hoặc so sánh hai món nào đáng tiền hơn. Nhớ ghi giá.</div>
       <div id="chat-log" class="chat-log" aria-live="polite"></div>
+      <div id="anh-cho" class="anh-cho"></div>
       <div class="chat-vao">
+        <label class="primary" style="display:flex;align-items:center;justify-content:center;min-width:48px;min-height:48px;border-radius:14px;cursor:pointer;font-size:22px;" aria-label="Thêm ảnh">📷<input id="chat-anh" type="file" accept="image/*" multiple hidden onchange="themAnh(this)"></label>
         <textarea id="chat-o" rows="2" placeholder="VD: Tai nghe A 1,2tr hay B 1,8tr, nên lấy cái nào?"></textarea>
         <button id="chat-gui" type="button" class="primary" onclick="guiHoi()">Gửi</button>
       </div>
@@ -498,26 +503,64 @@
         // Claude hay viết **đậm**: thoát HTML trước rồi mới đổi ** thành chữ đậm, an toàn với XSS.
         var an = String(m.noi_dung).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         d.innerHTML = an.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        (m.anh || []).slice().reverse().forEach(function (a) { var im = document.createElement('img'); im.src = a; im.alt = ''; d.insertBefore(im, d.firstChild); });
         log.appendChild(d);
       });
       if (log.lastChild) log.lastChild.scrollIntoView({ block: 'nearest' });
     }
-    function xoaChat() { LICH_SU_CHAT = []; veChat(); }
+    function xoaChat() { LICH_SU_CHAT = []; ANH_CHO = []; veAnhCho(); veChat(); }
+    var ANH_CHO = [];
+    // Thu nhỏ còn cạnh dài 1000px, JPEG 80% để mỗi ảnh chỉ ~100KB.
+    function nenAnh(file) {
+      return new Promise(function (ok, hong) {
+        var img = new Image();
+        img.onload = function () {
+          var k = Math.min(1, 1000 / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(img.src);
+          ok(c.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = hong;
+        img.src = URL.createObjectURL(file);
+      });
+    }
+    function themAnh(inp) {
+      var ds = Array.prototype.slice.call(inp.files || [], 0, 5 - ANH_CHO.length);
+      if (inp.files.length > ds.length) hienLoi('Tối đa 5 ảnh mỗi câu');
+      Promise.all(ds.map(nenAnh)).then(function (kq) { ANH_CHO = ANH_CHO.concat(kq); veAnhCho(); })
+        .catch(function () { hienLoi('Không đọc được ảnh'); });
+      inp.value = '';
+    }
+    function veAnhCho() {
+      var h = document.getElementById('anh-cho'); h.innerHTML = '';
+      ANH_CHO.forEach(function (a, i) {
+        var im = document.createElement('img'); im.src = a; im.alt = 'Ảnh ' + (i + 1) + ', chạm để bỏ';
+        im.onclick = function () { ANH_CHO.splice(i, 1); veAnhCho(); };
+        h.appendChild(im);
+      });
+    }
     function guiHoi() {
       var o = document.getElementById('chat-o'), nut = document.getElementById('chat-gui');
       var cau = o.value.trim();
-      if (!cau || nut.disabled) return;
-      var lichSu = LICH_SU_CHAT.filter(function (m) { return !m.cho; }).slice(-6);
-      LICH_SU_CHAT.push({ vai: 'user', noi_dung: cau });
+      var anh = ANH_CHO;
+      if ((!cau && !anh.length) || nut.disabled) return;
+      // Lịch sử chỉ gửi chữ; ảnh cũ không gửi lại cho đỡ tốn.
+      var lichSu = LICH_SU_CHAT.filter(function (m) { return !m.cho; }).slice(-6).map(function (m) {
+        return { vai: m.vai, noi_dung: (m.anh && m.anh.length ? '[kèm ' + m.anh.length + ' ảnh] ' : '') + m.noi_dung };
+      });
+      LICH_SU_CHAT.push({ vai: 'user', noi_dung: cau, anh: anh });
+      ANH_CHO = []; veAnhCho();
       LICH_SU_CHAT.push({ vai: 'assistant', noi_dung: 'Đang nghĩ…', cho: true });
       o.value = ''; nut.disabled = true; veChat();
       var xong = function (chu, loi) {
         LICH_SU_CHAT = LICH_SU_CHAT.filter(function (m) { return !m.cho; });
         if (loi) LICH_SU_CHAT.pop(); else LICH_SU_CHAT.push({ vai: 'assistant', noi_dung: chu });
-        if (loi) o.value = cau;
+        if (loi) { o.value = cau; ANH_CHO = anh; veAnhCho(); }
         nut.disabled = false; veChat();
       };
-      goiApi({ lenh: 'hoi', cau_hoi: cau, lich_su: lichSu, ky: document.getElementById('chat-ky').checked },
+      goiApi({ lenh: 'hoi', cau_hoi: cau, anh: anh, lich_su: lichSu, ky: document.getElementById('chat-ky').checked },
         function (kq) { xong(kq.tra_loi, false); },
         function () { xong('', true); });
     }
