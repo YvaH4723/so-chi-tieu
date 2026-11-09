@@ -621,7 +621,8 @@
         if (kq.ky) {
           KY_BAT_DAU = kq.ky.bat_dau || '';
           document.getElementById('tq-ky').textContent =
-            'Còn ' + kq.ky.con_ngay + ' ngày tới lương (' + ngayVN(kq.ky.luong_ke_tiep) + ')';
+            'Còn ' + kq.ky.con_ngay + ' ngày tới lương (' + ngayVN(kq.ky.luong_ke_tiep) + ')'
+            + (kq.muc_an_ngay && kq.muc_an_ngay < 35000 ? ' · ăn hạ còn ' + tien(kq.muc_an_ngay) + '/ngày vì thiếu tiền' : '');
         }
       });
       goiApi({ lenh: 'cho_phan_loai' }, function (kq) {
