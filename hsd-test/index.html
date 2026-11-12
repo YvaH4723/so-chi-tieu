@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HSD – Thử quét mã</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="HSD thử">
+<meta name="theme-color" content="#0b1220">
+<style>
+:root{--bg:#0b1220;--card:#131c2e;--ink:#e8edf5;--mute:#8b98ad;--acc:#3b82f6;--ok:#22c55e;--bad:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,system-ui,sans-serif;padding:max(12px,env(safe-area-inset-top)) 16px 40px}
+h1{font-size:18px;margin:4px 0 12px}
+.card{background:var(--card);border-radius:12px;padding:12px;margin-bottom:12px}
+#cam{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:4/3;display:none}
+#cam video{width:100%;height:100%;object-fit:cover}
+#cam .guide{position:absolute;left:8%;right:8%;top:38%;bottom:38%;border:2px solid rgba(255,255,255,.7);border-radius:8px}
+#cam.hit .guide{border-color:var(--ok);box-shadow:0 0 0 3px rgba(34,197,94,.4)}
+button{font:inherit;color:var(--ink);background:#1f2b44;border:0;border-radius:10px;padding:10px 14px;min-height:44px}
+button.pri{background:var(--acc)}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.row>*{flex:1 1 auto}
+input[type=text],input[type=tel]{font:inherit;color:var(--ink);background:#0b1220;border:1px solid #2a3957;border-radius:10px;padding:10px;width:100%;min-height:44px}
+#res{font-size:22px;font-weight:700;word-break:break-all}
+.mute{color:var(--mute);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{text-align:left;padding:4px 6px;border-bottom:1px solid #22304d}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;background:#1f2b44;font-size:12px;margin:2px 4px 2px 0}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+label.chk{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:14px}
+</style>
+</head>
+<body>
+<h1>HSD – Thử quét mã vạch</h1>
+
+<div class="card">
+  <div id="env" class="mute"></div>
+</div>
+
+<div id="cam"><video id="v" playsinline muted></video><div class="guide"></div></div>
+
+<div class="card">
+  <div class="row">
+    <button class="pri" id="bStart">Bật camera</button>
+    <button id="bStop" disabled>Tắt</button>
+    <button id="bSwitch" disabled>Đổi camera</button>
+    <button id="bTorch" disabled>Đèn</button>
+  </div>
+  <label class="chk"><input type="checkbox" id="cWasm"> Ép dùng WASM (kể cả khi trình duyệt có sẵn)</label>
+  <div class="mute" id="status" style="margin-top:8px">Chưa bật camera.</div>
+</div>
+
+<div class="card">
+  <div class="mute">Mã vừa quét</div>
+  <div id="res">—</div>
+  <div class="mute" id="resInfo"></div>
+</div>
+
+<div class="card">
+  <div class="mute">Nếu không quét được camera</div>
+  <div class="row">
+    <input type="tel" id="man" placeholder="Gõ mã vạch" inputmode="numeric">
+    <button id="bMan">Ghi</button>
+  </div>
+  <div class="row">
+    <label class="pri" style="background:var(--acc);border-radius:10px;padding:10px 14px;min-height:44px;text-align:center;display:block">
+      Chụp ảnh mã vạch<input type="file" id="fPhoto" accept="image/*" capture="environment" hidden>
+    </label>
+  </div>
+</div>
+
+<div class="card">
+  <div class="mute">Thống kê</div>
+  <div id="stats"></div>
+  <div class="row"><button id="bCopy">Chép kết quả để gửi lại</button><button id="bClear">Xoá</button></div>
+</div>
+
+<div class="card">
+  <div class="mute">Lịch sử (20 lần gần nhất)</div>
+  <table><thead><tr><th>Mã</th><th>Loại</th><th>Từ bật</th><th>Cách</th></tr></thead><tbody id="log"></tbody></table>
+</div>
+
+<script src="lib/barcode-detector.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const FORMATS=['ean_13','ean_8','upc_a','upc_e','code_128','code_39','qr_code'];
+const S={stream:null,detector:null,backend:'',devs:[],devIdx:0,t0:0,raf:0,loops:0,detMs:0,hits:0,log:[],lastCode:'',lastAt:0,track:null,torch:false,errors:[],permAsks:0};
+
+// wasm tự host: cùng thư mục
+BarcodeDetectionAPI.prepareZXingModule({overrides:{locateFile:(p,pre)=>p.endsWith('.wasm')?new URL('lib/'+p,location.href).href:pre+p}});
+
+function standalone(){return window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches}
+function envInfo(){
+  const nat='BarcodeDetector' in window;
+  $('env').innerHTML=
+   `<span class="tag">${standalone()?'Đã cài vào màn hình chính':'Đang mở trong trình duyệt'}</span>`+
+   `<span class="tag">BarcodeDetector gốc: ${nat?'<b class=ok>có</b>':'<b class=bad>không</b> (dùng WASM)'}</span>`+
+   `<span class="tag">HTTPS: ${isSecureContext?'<b class=ok>có</b>':'<b class=bad>không</b>'}</span>`+
+   `<span class="tag">${(navigator.userAgent.match(/(iPhone|iPad|Android[^;]*|Windows|Mac OS X)/)||['?'])[0]}</span>`;
+}
+async function makeDetector(){
+  const force=$('cWasm').checked, nat=('BarcodeDetector' in window)&&!force;
+  if(nat){
+    try{const sup=await BarcodeDetector.getSupportedFormats();const f=FORMATS.filter(x=>sup.includes(x));if(f.length){S.backend='gốc';return new BarcodeDetector({formats:f})}}catch(e){}
+  }
+  S.backend='WASM';
+  return new BarcodeDetectionAPI.BarcodeDetector({formats:FORMATS});
+}
+function status(t,bad){$('status').innerHTML=bad?`<span class="bad">${t}</span>`:t}
+
+async function start(){
+  try{
+    S.detector=await makeDetector();
+    const t=performance.now();
+    S.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    S.permAsks++;
+    S.devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+    attach(S.stream);
+    S.t0=performance.now();
+    status(`Camera mở sau ${Math.round(S.t0-t)} ms · bộ giải mã: ${S.backend}`);
+    $('bStart').disabled=true;$('bStop').disabled=false;$('bSwitch').disabled=S.devs.length<2;
+    loop();
+  }catch(e){fail(e)}
+}
+function attach(st){
+  const v=$('v');v.srcObject=st;v.play().catch(()=>{});$('cam').style.display='block';
+  S.track=st.getVideoTracks()[0];
+  const caps=S.track.getCapabilities?S.track.getCapabilities():{};
+  $('bTorch').disabled=!caps.torch;
+  S.track.addEventListener('ended',()=>{S.errors.push('Camera bị ngắt giữa chừng (track ended)');status('Camera bị ngắt giữa chừng. Bấm Bật camera lại.',true);stop(true)});
+}
+function stop(keepMsg){
+  cancelAnimationFrame(S.raf);
+  if(S.stream)S.stream.getTracks().forEach(t=>t.stop());
+  S.stream=null;$('cam').style.display='none';
+  $('bStart').disabled=false;$('bStop').disabled=true;$('bSwitch').disabled=true;$('bTorch').disabled=true;
+  if(!keepMsg)status('Đã tắt camera.');
+}
+async function switchCam(){
+  if(!S.devs.length)return;
+  S.devIdx=(S.devIdx+1)%S.devs.length;
+  S.stream.getTracks().forEach(t=>t.stop());
+  try{
+    S.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{deviceId:{exact:S.devs[S.devIdx].deviceId},width:{ideal:1280},height:{ideal:720}}});
+    attach(S.stream);status('Đổi camera: '+(S.devs[S.devIdx].label||('#'+S.devIdx)));
+  }catch(e){fail(e)}
+}
+async function torch(){
+  S.torch=!S.torch;
+  try{await S.track.applyConstraints({advanced:[{torch:S.torch}]})}catch(e){S.torch=false}
+}
+function fail(e){
+  const m=e&&e.name?e.name+': '+(e.message||''):String(e);
+  S.errors.push(m);
+  const hint=e&&e.name==='NotAllowedError'?' – Chưa cho phép camera. Vào Cài đặt > Safari/Chrome > Camera.':'';
+  status('Lỗi: '+m+hint,true);render();
+}
+let last=0,busy=false;
+async function loop(){
+  S.raf=requestAnimationFrame(loop);
+  const now=performance.now(),v=$('v');
+  if(busy||now-last<100||v.readyState<2||!S.stream)return;
+  last=now;busy=true;
+  try{
+    const a=performance.now();
+    const r=await S.detector.detect(v);
+    S.detMs+=performance.now()-a;S.loops++;
+    if(r.length)hit(r[0].rawValue,r[0].format,'camera');
+  }catch(e){S.errors.push('detect: '+e.message)}
+  busy=false;
+}
+function hit(code,fmt,how){
+  const now=performance.now();
+  if(code===S.lastCode&&now-S.lastAt<1500){S.lastAt=now;return}
+  S.lastCode=code;S.lastAt=now;S.hits++;
+  const el=how==='camera'?Math.round((now-S.t0))+' ms':'—';
+  S.log.unshift({code,fmt,el,how});S.log=S.log.slice(0,20);
+  $('res').textContent=code;$('resInfo').textContent=fmt+' · '+how;
+  $('cam').classList.add('hit');setTimeout(()=>$('cam').classList.remove('hit'),500);
+  if(navigator.vibrate)navigator.vibrate(60);
+  render();
+}
+async function photo(e){
+  const f=e.target.files[0];if(!f)return;
+  try{
+    if(!S.detector)S.detector=await makeDetector();
+    const bmp=await createImageBitmap(f);
+    const r=await S.detector.detect(bmp);
+    if(r.length)hit(r[0].rawValue,r[0].format,'ảnh chụp');
+    else{status('Không đọc được mã trong ảnh. Chụp gần hơn, đủ sáng, giữ thẳng.',true)}
+  }catch(err){fail(err)}
+  e.target.value='';
+}
+function manual(){
+  const c=$('man').value.replace(/\D/g,'');if(!c)return;
+  hit(c,'nhập tay','nhập tay');$('man').value='';
+}
+function render(){
+  $('stats').innerHTML=
+   `Lần quét thành công: <b>${S.hits}</b> · lượt giải mã: ${S.loops}`+
+   (S.loops?` · trung bình ${(S.detMs/S.loops).toFixed(0)} ms/lượt`:'')+
+   `<br>Bộ giải mã: ${S.backend||'—'} · lần xin camera: ${S.permAsks}`+
+   (S.errors.length?`<br><span class="bad">Lỗi: ${S.errors.slice(-3).join(' | ')}</span>`:'');
+  $('log').innerHTML=S.log.map(l=>`<tr><td>${l.code}</td><td>${l.fmt}</td><td>${l.el}</td><td>${l.how}</td></tr>`).join('');
+}
+function copy(){
+  const t=['HSD thử quét',$('env').innerText.replace(/\n/g,' '),$('stats').innerText,...S.log.map(l=>[l.code,l.fmt,l.el,l.how].join(' | '))].join('\n');
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>status('Đã chép. Dán vào chat.'),()=>{prompt('Chép đoạn này:',t)});
+}
+$('bStart').onclick=start;$('bStop').onclick=()=>stop();$('bSwitch').onclick=switchCam;$('bTorch').onclick=torch;
+$('bMan').onclick=manual;$('man').addEventListener('keydown',e=>{if(e.key==='Enter')manual()});
+$('fPhoto').onchange=photo;$('bCopy').onclick=copy;
+$('bClear').onclick=()=>{S.log=[];S.lastCode='';S.hits=S.loops=S.detMs=0;S.errors=[];$('res').textContent='—';$('resInfo').textContent='';render()};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&S.stream)stop()});
+envInfo();render();
+</script>
+</body>
+</html>
