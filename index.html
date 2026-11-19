@@ -273,7 +273,8 @@
         <select id="chat-ai" onchange="try{localStorage.setItem('hoi_ai',this.value)}catch(e){}">
           <option value="haiku">Claude Haiku (rẻ)</option>
           <option value="sonnet">Claude Sonnet (kỹ hơn, tốn hơn vài lần)</option>
-          <option value="khac">AI khác (miễn phí)</option>
+          <option value="gemini">Gemini (miễn phí)</option>
+          <option value="9router">9Router (miễn phí, cần bật PC)</option>
         </select>
       </label>
       <label class="chat-giu">Lưu cuộc trò chuyện
@@ -650,7 +651,7 @@
         luuChat();
         nut.disabled = false; veChat();
       };
-      goiApi({ lenh: 'hoi', cau_hoi: cau, anh: anh, lich_su: lichSu, ky: document.getElementById('chat-ai').value === 'sonnet', ai: document.getElementById('chat-ai').value === 'khac' ? 'khac' : 'claude' },
+      goiApi({ lenh: 'hoi', cau_hoi: cau, anh: anh, lich_su: lichSu, ky: document.getElementById('chat-ai').value === 'sonnet', ai: document.getElementById('chat-ai').value },
         function (kq) { xong(kq.tra_loi, false); },
         function () { xong('', true); });
     }
