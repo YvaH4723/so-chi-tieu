@@ -65,6 +65,8 @@
     /* Tổng quan: con số chính */
     .hero { padding: 20px 4px 8px; }
     .hero .card-label { font-size: 16px; }
+    /* chữ phụ trên nền thẻ có pha màu: sáng hơn một chút để đủ tương phản */
+    .hero .card-label, .hero .sub-line { color: color-mix(in srgb, var(--ink) 78%, var(--sub)); }
     .hero-so { font-size: 56px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; margin: 2px 0 6px; }
     .hero-so.am { color: var(--over); }
     .hero-so small { font-size: 26px; font-weight: 700; margin-left: 2px; color: var(--sub); }
@@ -175,6 +177,9 @@
     .bong.toi { align-self: flex-end; background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 6px; }
     .bong.ai { align-self: flex-start; background: var(--surface); border-bottom-left-radius: 6px; }
     .bong.cho { color: var(--sub); }
+    .chat-dau { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .nut-nho { min-height: 40px; padding: 8px 14px; font-size: 14px; }
+    .chat-giu { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 14px; color: var(--sub); font-size: 14px; }
     .chat-vao { display: flex; gap: 8px; align-items: flex-end; }
     .chat-vao textarea { flex: 1; font: inherit; min-height: 48px; max-height: 140px; resize: vertical; }
     .anh-cho { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -252,7 +257,10 @@
     </section>
 
     <section id="tab-hoi" class="hidden">
-      <h2>Hỏi Claude</h2>
+      <div class="chat-dau">
+        <h2>Hỏi Claude</h2>
+        <button id="chat-xoa" type="button" class="nut-nho" onclick="xoaChat()">Xóa chat</button>
+      </div>
       <div class="sub-line" style="margin-bottom:10px;">Hỏi có nên mua món nào đó với số tiền đang có, hoặc so sánh hai món nào đáng tiền hơn. Nhớ ghi giá.</div>
       <div id="chat-log" class="chat-log" aria-live="polite"></div>
       <div id="anh-cho" class="anh-cho"></div>
@@ -262,7 +270,17 @@
         <button id="chat-gui" type="button" class="primary" onclick="guiHoi()">Gửi</button>
       </div>
       <label style="display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--sub);font-size:14px;"><input id="chat-ky" type="checkbox"> Dùng Sonnet (kỹ hơn, tốn hơn vài lần)</label>
-      <button type="button" class="full-btn" style="margin-top:10px;" onclick="xoaChat()">Xóa cuộc trò chuyện</button>
+      <label class="chat-giu">Lưu cuộc trò chuyện
+        <select id="chat-giu" onchange="doiGiuChat()">
+          <option value="1">1 ngày</option>
+          <option value="3">3 ngày</option>
+          <option value="7">7 ngày</option>
+          <option value="30">30 ngày</option>
+          <option value="90">90 ngày</option>
+          <option value="0">Không xóa</option>
+        </select>
+      </label>
+      <div class="sub-line" style="margin-top:6px;">Chat lưu trên máy này (iPhone và Android không dùng chung). Ảnh chỉ lưu bản thu nhỏ.</div>
     </section>
 
     <section id="tab-them" class="hidden">
@@ -494,7 +512,67 @@
     }
 
     var LICH_SU_CHAT = [];
+    var KHOA_CHAT = 'hoi_chat_v1', KHOA_GIU = 'hoi_giu_ngay';
+    // Số ngày giữ chat; 0 = không xóa. Mặc định 30 ngày.
+    function docGiuNgay() {
+      try { var v = localStorage.getItem(KHOA_GIU); if (v !== null && !isNaN(Number(v))) return Number(v); } catch (e) {}
+      return 30;
+    }
+    // Bỏ tin quá hạn; trả true nếu có tin bị bỏ.
+    function donChatCu() {
+      var ngay = docGiuNgay();
+      if (!ngay) return false;
+      var han = Date.now() - ngay * 86400000, truoc = LICH_SU_CHAT.length;
+      LICH_SU_CHAT = LICH_SU_CHAT.filter(function (m) { return m.cho || !m.t || m.t >= han; });
+      return LICH_SU_CHAT.length !== truoc;
+    }
+    // Ghi xuống máy; đầy bộ nhớ thì bỏ dần tin cũ nhất.
+    function luuChat() {
+      var ds = LICH_SU_CHAT.filter(function (m) { return !m.cho; }).map(function (m) {
+        return { vai: m.vai, noi_dung: m.noi_dung, t: m.t || Date.now(), anh: m.thu || [] };
+      });
+      try {
+        if (!ds.length) { localStorage.removeItem(KHOA_CHAT); return; }
+        while (ds.length) {
+          try { localStorage.setItem(KHOA_CHAT, JSON.stringify(ds)); return; }
+          catch (e) { ds.shift(); }
+        }
+      } catch (e) {}
+    }
+    function napChat() {
+      try {
+        var ds = JSON.parse(localStorage.getItem(KHOA_CHAT) || '[]');
+        if (Array.isArray(ds)) LICH_SU_CHAT = ds.filter(function (m) { return m && (m.vai === 'user' || m.vai === 'assistant') && typeof m.noi_dung === 'string'; })
+          .map(function (m) { return { vai: m.vai, noi_dung: m.noi_dung, t: m.t, anh: m.anh || [], thu: m.anh || [] }; });
+      } catch (e) { LICH_SU_CHAT = []; }
+      if (donChatCu()) luuChat();
+      var s = document.getElementById('chat-giu');
+      if (s) s.value = String(docGiuNgay());
+    }
+    function doiGiuChat() {
+      var v = document.getElementById('chat-giu').value;
+      try { localStorage.setItem(KHOA_GIU, v); } catch (e) {}
+      if (donChatCu()) luuChat();
+      veChat();
+      hienThongBaoNgan(v === '0' ? 'Chat sẽ không bị xóa' : 'Chat giữ ' + v + ' ngày');
+    }
+    // Thu nhỏ ảnh còn 120px để lưu được nhiều tin mà không đầy bộ nhớ.
+    function thuNhoAnh(dataUrl) {
+      return new Promise(function (ok) {
+        var img = new Image();
+        img.onload = function () {
+          var k = Math.min(1, 120 / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          ok(c.toDataURL('image/jpeg', 0.6));
+        };
+        img.onerror = function () { ok(''); };
+        img.src = dataUrl;
+      });
+    }
     function veChat() {
+      if (donChatCu()) luuChat();
       var log = document.getElementById('chat-log');
       log.innerHTML = '';
       LICH_SU_CHAT.forEach(function (m) {
@@ -508,7 +586,10 @@
       });
       if (log.lastChild) log.lastChild.scrollIntoView({ block: 'nearest' });
     }
-    function xoaChat() { LICH_SU_CHAT = []; ANH_CHO = []; veAnhCho(); veChat(); }
+    function xoaChat() {
+      if (LICH_SU_CHAT.length && !confirm('Xóa toàn bộ cuộc trò chuyện này? Không khôi phục được.')) return;
+      LICH_SU_CHAT = []; ANH_CHO = []; veAnhCho(); luuChat(); veChat();
+    }
     var ANH_CHO = [];
     // Thu nhỏ còn cạnh dài 1000px, JPEG 80% để mỗi ảnh chỉ ~100KB.
     function nenAnh(file) {
@@ -550,14 +631,17 @@
       var lichSu = LICH_SU_CHAT.filter(function (m) { return !m.cho; }).slice(-6).map(function (m) {
         return { vai: m.vai, noi_dung: (m.anh && m.anh.length ? '[kèm ' + m.anh.length + ' ảnh] ' : '') + m.noi_dung };
       });
-      LICH_SU_CHAT.push({ vai: 'user', noi_dung: cau, anh: anh });
+      var tinMinh = { vai: 'user', noi_dung: cau, anh: anh, t: Date.now(), thu: [] };
+      LICH_SU_CHAT.push(tinMinh);
+      Promise.all(anh.map(thuNhoAnh)).then(function (ds) { tinMinh.thu = ds.filter(Boolean); luuChat(); });
       ANH_CHO = []; veAnhCho();
       LICH_SU_CHAT.push({ vai: 'assistant', noi_dung: 'Đang nghĩ…', cho: true });
       o.value = ''; nut.disabled = true; veChat();
       var xong = function (chu, loi) {
         LICH_SU_CHAT = LICH_SU_CHAT.filter(function (m) { return !m.cho; });
-        if (loi) LICH_SU_CHAT.pop(); else LICH_SU_CHAT.push({ vai: 'assistant', noi_dung: chu });
+        if (loi) LICH_SU_CHAT.pop(); else LICH_SU_CHAT.push({ vai: 'assistant', noi_dung: chu, t: Date.now() });
         if (loi) { o.value = cau; ANH_CHO = anh; veAnhCho(); }
+        luuChat();
         nut.disabled = false; veChat();
       };
       goiApi({ lenh: 'hoi', cau_hoi: cau, anh: anh, lich_su: lichSu, ky: document.getElementById('chat-ky').checked },
@@ -1525,6 +1609,7 @@
       var m = location.hash.match(/k=([0-9a-f]{32,})/i);
       if (m) { ghiKhoa(m[1]); history.replaceState(null, '', location.pathname); }
     })();
+    napChat();
     KHOA_API = docKhoa();
     if (!KHOA_API) hienKhungKhoa();
     else taiTabHienTai();
