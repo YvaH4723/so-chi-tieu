@@ -241,6 +241,13 @@
         <div class="dong-tom"><span>Người yêu và ăn ngoài</span><b id="tq-ny">…</b></div>
         <div class="dong-tom"><span>Ví</span><b id="tq-vi">…</b></div>
       </div>
+      <div class="card hidden" id="tq-oh">
+        <div class="dong-tom"><span>🐷 Ống Heo tích kỳ này</span><b id="tq-oh-ky">…</b></div>
+        <div class="dong-tom"><span>Trung bình mỗi ngày</span><b id="tq-oh-ngay">…</b></div>
+        <div class="dong-tom"><span>Dự kiến cuối kỳ</span><b id="tq-oh-cuoi">…</b></div>
+        <div class="dong-tom"><span>Dự kiến cả năm</span><b id="tq-oh-nam">…</b></div>
+        <div class="sub-line" id="tq-oh-tong" style="margin:6px 0 0;font-size:13px;"></div>
+      </div>
       <div id="tq-canh-bao" class="canh-bao"></div>
       <button id="nut-can-pl" type="button" class="primary full-btn" onclick="chuyenTab('phan-loai')">
         Cần phân loại (0)
@@ -819,6 +826,15 @@
         var dv = document.createElement('small'); dv.textContent = 'đ'; elAn.appendChild(dv);
         var ny = kq.quy_nguoi_yeu_con;
         document.getElementById('tq-ny').textContent = ny >= 0 ? tien(ny) : ('vượt ' + tien(-ny));
+        var oh = kq.ong_heo, elOh = document.getElementById('tq-oh');
+        elOh.classList.toggle('hidden', !oh);
+        if (oh) {
+          document.getElementById('tq-oh-ky').textContent = tien(oh.trong_ky);
+          document.getElementById('tq-oh-ngay').textContent = tien(oh.tb_ngay);
+          document.getElementById('tq-oh-cuoi').textContent = tien(oh.du_kien_ky);
+          document.getElementById('tq-oh-nam').textContent = tien(oh.du_kien_nam);
+          document.getElementById('tq-oh-tong').textContent = 'Tổng đã tích từ đầu: ' + tien(oh.tong) + ' (trung bình ' + oh.so_ngay_da_qua + ' ngày đã qua của kỳ)';
+        }
         var dongTB = String(kq.thong_bao || '').split('\n');
         var dongVi = dongTB.find(function (x) { return x.indexOf('Ví:') === 0; }) || 'Ví: …';
         document.getElementById('tq-vi').textContent = dongVi.replace(/^Ví:\s*/, '');
