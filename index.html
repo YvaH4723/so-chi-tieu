@@ -450,7 +450,7 @@
         <textarea id="na-van-ban" rows="3" style="width:100%;font:inherit;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 12px;margin-top:6px;" placeholder="Dán chữ OCR từ ảnh Liobank nếu không dùng ảnh…"></textarea>
       </details>
       <div id="na-ket-qua" class="ket-qua-hop hidden"></div>
-      <button id="na-di-pl" type="button" class="full-btn hidden" onclick="dongSheet('sheet-nhap-anh');chuyenTab('phan-loai')">Đi phân loại ngay</button>
+      <button id="na-di-pl" type="button" class="full-btn hidden" onclick="diPhanLoaiTuNhapAnh()">Đi phân loại ngay</button>
       <button id="na-gui" type="button" class="primary full-btn" style="margin-bottom:0;" onclick="chayNhapAnh()">Đọc &amp; Nhập ảnh</button>
     </div>
   </div>
@@ -485,6 +485,8 @@
   <script>
     var KHOA_API = '';
     var TAB_HIEN_TAI = 'tong-quan';
+    var CHO_POP_SHEET = false;
+    var TAB_CHO_PUSH = '';
     var KY_BAT_DAU = '';
     var KY_HOM_NAY = '';
     var MA_KHOAN_GN = '';
@@ -640,13 +642,21 @@
         });
     }
 
-    function chuyenTab(ten) {
+    function chuyenTab(ten, boGhiLichSu) {
+      var tabTruoc = TAB_HIEN_TAI;
       TAB_HIEN_TAI = ten;
       ['tong-quan', 'phan-loai', 'ngan-sach', 'so', 'hoi', 'them'].forEach(function (t) {
         document.getElementById('tab-' + t).classList.toggle('hidden', t !== ten);
         document.getElementById('btn-tab-' + t).classList.toggle('active', t === ten);
       });
       document.getElementById('nut-fab').classList.toggle('hidden', ten === 'hoi');
+      if (!boGhiLichSu && ten !== tabTruoc) {
+        if (CHO_POP_SHEET) {
+          TAB_CHO_PUSH = ten;
+        } else {
+          try { history.pushState({ tab: ten, sheet: '' }, ''); } catch (e) {}
+        }
+      }
       taiTabHienTai();
     }
 
@@ -1882,8 +1892,11 @@
       el.classList.remove('hidden');
       document.body.style.overflow = 'hidden';
       capNhatBanPhimSheet();
+      if (!(history.state && history.state.sheet === id)) {
+        try { history.pushState({ tab: TAB_HIEN_TAI, sheet: id }, ''); } catch (e) {}
+      }
     }
-    function dongSheet(id) {
+    function dongSheetDOM(id) {
       var el = document.getElementById(id);
       if (el) {
         el.classList.add('hidden');
@@ -1895,6 +1908,45 @@
         document.body.style.overflow = '';
       }
     }
+    function dongSheet(id, boPopLichSu) {
+      dongSheetDOM(id);
+      if (!boPopLichSu && history.state && history.state.sheet === id) {
+        CHO_POP_SHEET = true;
+        try { history.back(); } catch (e) { CHO_POP_SHEET = false; }
+      }
+    }
+    function diPhanLoaiTuNhapAnh() {
+      if (TAB_HIEN_TAI === 'phan-loai') {
+        dongSheet('sheet-nhap-anh');
+        taiTabHienTai();
+        return;
+      }
+      dongSheet('sheet-nhap-anh', true);
+      try { history.replaceState({ tab: 'phan-loai', sheet: '' }, ''); } catch (e) {}
+      chuyenTab('phan-loai', true);
+    }
+    window.addEventListener('popstate', function (e) {
+      document.querySelectorAll('.sheet-nen:not(.hidden)').forEach(function (s) {
+        if (s.id) dongSheetDOM(s.id);
+      });
+      var st = e && e.state;
+      if (CHO_POP_SHEET) {
+        CHO_POP_SHEET = false;
+        if (TAB_CHO_PUSH) {
+          var t = TAB_CHO_PUSH;
+          TAB_CHO_PUSH = '';
+          if (!(st && st.tab === t && !st.sheet)) {
+            try { history.pushState({ tab: t, sheet: '' }, ''); } catch (err) {}
+          }
+        }
+        return;
+      }
+      if (st && st.sheet) {
+        try { history.replaceState({ tab: st.tab || TAB_HIEN_TAI, sheet: '' }, ''); } catch (err) {}
+      }
+      var tabDich = (st && st.tab && ['tong-quan', 'phan-loai', 'ngan-sach', 'so', 'hoi', 'them'].indexOf(st.tab) >= 0) ? st.tab : 'tong-quan';
+      if (tabDich !== TAB_HIEN_TAI) chuyenTab(tabDich, true);
+    });
     function capNhatBanPhimSheet() {
       var vv = window.visualViewport;
       document.querySelectorAll('.sheet-nen').forEach(function (nen) {
@@ -2223,7 +2275,10 @@
 
     (function () {
       var m = location.hash.match(/k=([0-9a-f]{32,})/i);
-      if (m) { ghiKhoa(m[1]); history.replaceState(null, '', location.pathname); }
+      if (m) ghiKhoa(m[1]);
+      try {
+        history.replaceState({ tab: TAB_HIEN_TAI, sheet: '' }, '', location.pathname + location.search);
+      } catch (e) {}
     })();
     napChat();
     try { var aiLuu = localStorage.getItem('hoi_ai'); if (aiLuu) document.getElementById('chat-ai').value = aiLuu; } catch (e) {}
