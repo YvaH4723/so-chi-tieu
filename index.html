@@ -806,7 +806,7 @@
         nut.disabled = false; veChat();
       };
       goiApi({ lenh: 'hoi', cau_hoi: cau, anh: anh, lich_su: lichSu, ky: document.getElementById('chat-ai').value === 'sonnet', ai: document.getElementById('chat-ai').value },
-        function (kq) { xong(kq.tra_loi, false); },
+        function (kq) { var c = kq && (kq.tra_loi || kq.thong_bao); if (c) xong(c, false); else { xong('', true); hienLoi('AI không trả lời, thử lại hoặc đổi AI khác'); } },
         function () { xong('', true); });
     }
 
